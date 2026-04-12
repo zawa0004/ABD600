@@ -1,0 +1,111 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_HTTP_Post" Id="{b41a389a-f33a-4d95-86ff-f78c99b4112c}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_HTTP_Post
+VAR_INPUT
+    bSend           : BOOL;             //Trigger send message
+    position        : STRING;           //Location A, B, C, D, Home
+    dateTime        : STRING;           //Timestamp
+    battery         : INT;              //Battery level
+END_VAR
+VAR_IN_OUT
+    fbClient        : FB_IotHttpClient;
+END_VAR
+VAR_OUTPUT
+    bBusy           : BOOL;
+    bError          : BOOL;
+    nResCount       : UDINT;
+    nOutputStatusCode : UINT;
+    sOutputMessage  : STRING(511);
+END_VAR
+VAR
+    fbRequest       : FB_IotHttpRequest;
+    fbJson          : FB_JsonDomParser;
+    fbPayload       : FB_JsonSaxWriter;
+    fbHeader        : FB_IotHttpHeaderFieldMap;
+    RisingEdge      : R_TRIG;
+    nState          : UDINT;
+    bGetContentResult : BOOL;
+    sContent        : STRING(511);
+    nReqCount       : UDINT;
+    nErrCount       : UDINT;
+    LoggMessage     : STRING;
+	sBattery : STRING;
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[RisingEdge(CLK:= bSend);
+CASE nState OF
+0:
+    IF RisingEdge.Q THEN
+        sContent := DELETE(STR:=sContent, LEN:=511, POS:=1);
+        fbPayload.ResetDocument();
+        fbPayload.StartObject();
+        fbHeader.AddField('Content-Type', 'application/json', FALSE);
+
+        (* Position *)
+        fbPayload.AddKey('Position');
+        fbPayload.AddString(position);
+
+        (* TimeStamp — no colon! *)
+        fbPayload.AddKey('TimeStamp');
+        fbPayload.AddString(dateTime);
+
+        (* Battery — NEW *)
+        sBattery := INT_TO_STRING(battery);
+        fbPayload.AddKey('Battery');
+        fbPayload.AddString(sBattery);
+
+        fbPayload.EndObject();
+        sContent := fbPayload.GetDocument();
+
+        IF fbRequest.SendRequest(
+            sUri         := '/post_data',
+            fbClient     := fbClient,
+            eRequestType := ETcIotHttpRequestType.HTTP_POST,
+            pContent     := ADR(sContent),
+            nContentSize := LEN2(ADR(sContent)),
+            fbHeader) THEN
+
+            nState   := 1;
+            IF nReqCount > 10 THEN
+                nReqCount := 0;
+            END_IF
+            nReqCount := nReqCount + 1;
+            bBusy     := TRUE;
+            bError    := FALSE;
+        END_IF
+    END_IF
+
+1:
+    IF NOT fbRequest.bBusy THEN
+        bError            := TRUE;
+        nOutputStatusCode := fbRequest.nStatusCode;
+
+        IF NOT fbRequest.bError THEN
+            bGetContentResult := fbRequest.GetContent(
+                pContent           := ADR(sContent),
+                nContentSize       := SIZEOF(sContent),
+                bSetNullTermination := TRUE);
+
+            sOutputMessage := sContent;
+
+            IF fbRequest.nStatusCode >= 200 AND fbRequest.nStatusCode < 300 THEN
+                bError    := FALSE;
+                nResCount := nResCount + 1;
+                bBusy     := FALSE;
+            END_IF
+        END_IF
+
+        nState := 0;
+        IF bError THEN
+            nErrCount := nErrCount + 1;
+        END_IF
+    END_IF
+END_CASE]]></ST>
+    </Implementation>
+    <LineIds Name="FB_HTTP_Post">
+      <LineId Id="3" Count="67" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

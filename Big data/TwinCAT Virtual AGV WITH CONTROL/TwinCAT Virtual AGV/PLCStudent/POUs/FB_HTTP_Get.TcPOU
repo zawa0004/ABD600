@@ -1,0 +1,130 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_HTTP_Get" Id="{ffd7ae5c-a777-4026-84ee-f4e09d9a46ea}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_HTTP_Get
+VAR_INPUT
+	bSend				: BOOL;
+END_VAR
+VAR_IN_OUT
+	fbClient			: FB_IotHttpClient;
+END_VAR	
+VAR_OUTPUT
+	bBusy				: BOOL;
+	bError				: BOOL;
+	nOutputStatusCode   : UINT;
+	sOutputMessage      : STRING(511);
+END_VAR
+VAR	
+	fbRequest			: FB_IotHttpRequest;
+	fbJson				: FB_JsonDomParser;
+	jsonMember       : SJsonValue;
+	fbHeader: FB_IotHttpHeaderFieldMap;
+	nState				: UDINT;
+	RisingEdge			: R_TRIG;
+	
+	bGetContentResult	: BOOL;
+	sContent			: STRING(2000);
+	
+	bGetJsonResult		: BOOL;
+	jsonDoc				: SJsonValue;
+	jsonVal				: SJsonValue;
+	sResultValue		: STRING;
+	
+	
+	nReqCount			: UDINT;
+	nResCount			: UDINT;
+	nValidResCount		: UDINT;
+	nErrCount			: UDINT;	
+	LoggMessage			:STRING;		(*Debugger varible*)
+	jsonString: STRING(255);
+	uValue: LREAL;
+	sUri: STRING;
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[RisingEdge(CLK:= bSend);
+CASE nState OF
+0:		
+	IF RisingEdge.Q THEN
+		IF fbRequest.SendRequest(sUri:='/get_variable/example_var2', fbClient:= fbClient, eRequestType:= ETcIotHttpRequestType.HTTP_GET, 0, 0, 0) THEN				
+			nState:= 1;
+			nReqCount:= nReqCount+1;
+			bBusy:= TRUE;
+			bError:= FALSE;
+			
+			LoggMessage:='';
+			ADSLOGSTR(
+				msgCtrlMask := ADSLOG_MSGTYPE_HINT, 
+				msgFmtStr   := 'Get 0:1', 
+				strArg      := LoggMessage
+			);
+		END_IF					
+	END_IF
+1:
+	IF NOT fbRequest.bBusy THEN
+		bError:= TRUE;
+		
+		// 1. HTTP state to var
+		nOutputStatusCode := fbRequest.nStatusCode;
+		
+		ADSLOGSTR(
+			msgCtrlMask := ADSLOG_MSGTYPE_HINT, 
+			msgFmtStr   := 'Get 1:1', 
+			strArg      := ''
+		);
+		
+		IF NOT fbRequest.bError THEN	
+			ADSLOGSTR(
+				msgCtrlMask := ADSLOG_MSGTYPE_HINT, 
+				msgFmtStr   := 'Get 1:2 %s', 
+				strArg      := sContent
+			);			 
+			LoggMessage:=INT_TO_STRING(len(sContent));
+			ADSLOGSTR(
+				msgCtrlMask := ADSLOG_MSGTYPE_HINT, 
+				msgFmtStr   := 'lenght of string is %s', 
+				strArg      := LoggMessage
+			);	
+			
+			//sContent:=DELETE(STR:=sContent , LEN:=511 , POS:=1 );		
+			//bGetContentResult:= fbRequest.GetContent(pContent:= ADR(sContent), nContentSize:= SIZEOF(sContent), bSetNullTermination:= TRUE);	
+			
+			// 2. String to var
+			//sOutputMessage := sContent;
+			
+			IF fbRequest.nStatusCode >= 200 AND fbRequest.nStatusCode < 300 THEN
+				bGetJsonResult:= FALSE;
+				jsonDoc:= fbRequest.GetJsonDomContent(fbJson);	
+				sOutputMessage :=fbJson.GetString(jsonDoc);		
+				IF jsonDoc <> 0 THEN		
+					jsonVal := fbJson.FindMember(jsonDoc, 'example_var2');					
+					sResultValue := fbJson.GetString(jsonVal);
+					uValue := STRING_TO_LREAL(sResultValue);
+					//jsonVal := fbJson.FindMember(jsonDoc, 'example_var1');					
+					//sResultValue := fbJson.GetString(jsonVal);
+
+					ADSLOGSTR((*Debugger*)
+						msgCtrlMask := ADSLOG_MSGTYPE_HINT, 
+						msgFmtStr   := 'jsonDoc get message is: %s', 
+						strArg      := sResultValue
+					);
+					nValidResCount:= nValidResCount+1;
+					bError:= FALSE;
+				END_IF
+				nResCount:= nResCount+1;					
+			END_IF				
+		END_IF
+		
+		nState:= 0;
+		bBusy:= FALSE;
+		IF bError THEN
+			nErrCount:= nErrCount+1;
+		END_IF		
+	END_IF  	
+END_CASE]]></ST>
+    </Implementation>
+    <LineIds Name="FB_HTTP_Get">
+      <LineId Id="3" Count="78" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

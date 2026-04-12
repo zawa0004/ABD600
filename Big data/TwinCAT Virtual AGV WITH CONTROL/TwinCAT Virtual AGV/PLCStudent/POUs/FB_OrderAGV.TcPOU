@@ -1,0 +1,49 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_OrderAGV" Id="{fede22cd-1900-4032-8299-c784bd91fa4f}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_OrderAGV
+VAR_INPUT
+	xStart: BOOL;
+	iOrder: INT;
+END_VAR
+VAR_OUTPUT
+END_VAR
+VAR
+	iState: INT :=0; // 0 is init state
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[CASE iState OF
+	0: // init
+		IF xStart AND (iOrder<>0) THEN
+			iState:=1;
+		END_IF
+	1: // Send order
+		gvl.qiGotoPos:=iOrder;
+		iState:=2;
+	2: //Set strobe
+		gvl.qxPLCStrobe:=TRUE;
+		IF gvl.ixAGVStrobe THEN
+			iState:=3;
+		END_IF
+	3: //Order recieved
+		gvl.qiGotoPos:=0;
+		gvl.qxPLCStrobe:=FALSE;
+		IF gvl.iiAtPos<>0 THEN
+			iState:=4;
+		END_IF
+	4: //Wait for strobe
+		IF gvl.ixAGVStrobe THEN
+			iState:=5;
+		END_IF
+	5: //AGV moved
+		gvl.qxPLCStrobe:=TRUE;
+		IF (NOT gvl.ixAGVStrobe) AND gvl.iiAtPos=0 THEN
+			iState:=6;
+		END_IF
+	6: //Answer ready
+		iState:=0;
+END_CASE]]></ST>
+    </Implementation>
+  </POU>
+</TcPlcObject>

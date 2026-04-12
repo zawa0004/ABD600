@@ -1,0 +1,119 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_HTTP_GetSafety" Id="{d267510d-e5ab-4805-8362-2fc793108f77}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_HTTP_GetSafety
+VAR_INPUT
+    bSend           : BOOL;
+    sLocation       : STRING;    (* Pass 'A', 'B', 'C' or 'D' *)
+END_VAR
+VAR_IN_OUT
+    fbClient        : FB_IotHttpClient;
+END_VAR
+VAR_OUTPUT
+    bBusy           : BOOL;
+    bError          : BOOL;
+    bDone           : BOOL;
+    nOutputStatusCode : UINT;
+    bIsSafe         : BOOL;      (* TRUE = safe, FALSE = unsafe *)
+END_VAR
+VAR
+    fbRequest       : FB_IotHttpRequest;
+    fbJson          : FB_JsonDomParser;
+    nState          : UDINT;
+    RisingEdge      : R_TRIG;
+    jsonDoc         : SJsonValue;
+    jsonVal         : SJsonValue;
+    sResultValue    : STRING;
+    sFullUri        : STRING;
+    LoggMessage     : STRING;
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[RisingEdge(CLK := bSend);  // 调用上升沿检测功能块，把输入CLK绑定到bSend信号，用于检测从FALSE→TRUE的瞬间
+
+CASE nState OF   // 状态机，根据当前状态nState执行不同逻辑
+
+0:  // 状态0：空闲/准备发送请求状态
+    bDone := FALSE;  // 标记当前任务尚未完成（每次进入初始状态都清零完成标志）
+    
+    IF RisingEdge.Q THEN  // 如果检测到bSend的上升沿（触发一次请求）
+        
+        (* Only path, not full URL *)  // 注释说明这里只拼接路径，不是完整URL
+        sFullUri := CONCAT('/get_safety/', sLocation);  // 拼接请求路径，例如 /get_safety/A1
+
+        IF fbRequest.SendRequest(  // 调用HTTP请求发送函数
+            sUri         := sFullUri,  // 请求的URI路径
+            fbClient     := fbClient,  // HTTP客户端实例
+            eRequestType := ETcIotHttpRequestType.HTTP_GET,  // 请求类型：GET
+            0, 0, 0)  // 额外参数（未使用，占位）
+        THEN  // 如果请求成功发起（注意：只是“发出去”，不是“收到响应”）
+            
+            nState := 1;  // 切换到状态1（等待响应）
+            bBusy  := TRUE;  // 标记系统正在忙（请求处理中）
+            bError := FALSE;  // 清除错误标志
+            bDone  := FALSE;  // 再次确认未完成（其实这里有点重复）
+
+            ADSLOGSTR(  // TwinCAT日志输出函数
+                msgCtrlMask := ADSLOG_MSGTYPE_HINT,  // 日志类型：提示信息
+                msgFmtStr   := 'SafetyCheck: Sending request for location %s',  // 日志格式字符串
+                strArg      := sLocation  // 替换%s的参数（位置名）
+            );
+        END_IF
+    END_IF
+
+1:  // 状态1：等待HTTP响应完成
+    IF NOT fbRequest.bBusy THEN  // 如果请求已经处理完成（不再忙）
+        
+        nOutputStatusCode := fbRequest.nStatusCode;  // 保存HTTP返回状态码（例如200、404等）
+
+        IF NOT fbRequest.bError AND  // 如果请求过程中没有错误
+           fbRequest.nStatusCode >= 200 AND  // 且HTTP状态码在200以上
+           fbRequest.nStatusCode < 300  // 且小于300（表示成功响应）
+        THEN
+            
+            jsonDoc := fbRequest.GetJsonDomContent(fbJson);  // 解析HTTP响应内容为JSON DOM结构
+
+            IF jsonDoc <> 0 THEN  // 如果JSON解析成功（非空指针）
+                
+                (* server.py returns {"safe": "true"} or {"safe": "false"} *)  // 服务端返回格式说明
+                
+                jsonVal      := fbJson.FindMember(jsonDoc, 'safe');  // 在JSON中查找字段 "safe"
+                sResultValue := fbJson.GetString(jsonVal);  // 获取该字段的字符串值（"true" 或 "false"）
+
+                IF sResultValue = 'true' THEN  // 如果返回值是字符串"true"
+                    bIsSafe := TRUE;  // 标记为安全
+                ELSE  // 否则（包括"false"或异常情况）
+                    bIsSafe := FALSE;  // 标记为不安全
+                END_IF
+
+                LoggMessage := sResultValue;  // 保存结果字符串用于日志输出
+                
+                ADSLOGSTR(  // 输出日志
+                    msgCtrlMask := ADSLOG_MSGTYPE_HINT,  // 提示类型日志
+                    msgFmtStr   := 'SafetyCheck result: %s',  // 日志格式
+                    strArg      := LoggMessage  // 输出实际返回值
+                );
+            ELSE  // 如果JSON解析失败
+                
+                bIsSafe := FALSE;  // 默认认为不安全（保守处理）
+                bError  := TRUE;  // 标记发生错误
+            END_IF
+        
+        ELSE  // 如果请求失败（HTTP错误或通信错误）
+            
+            bIsSafe := FALSE;  // 默认不安全
+            bError  := TRUE;  // 标记错误
+        END_IF
+
+        bDone  := TRUE;  // 标记任务完成（无论成功失败都会置TRUE）
+        bBusy  := FALSE;  // 清除忙状态
+        nState := 0;  // 回到初始状态，等待下一次触发
+    END_IF
+
+END_CASE  // 状态机结束]]></ST>
+    </Implementation>
+    <LineIds Name="FB_HTTP_GetSafety">
+      <LineId Id="73" Count="80" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

@@ -1,0 +1,6 @@
+/COM,ANSYS RELEASE 2021 R1           BUILD 21.1      UP20201109       12:48:22
+
+ *** ERROR ***                           CP =       0.984   TIME= 12:48:24
+ Data file \\w8file01.wad.hv.se\2024$\zawa0004\ABD600\Big                
+ data\bigdata.db has incorrect format, is missing READ/WRITE             
+ permission, or is empty for RESUME.                                     

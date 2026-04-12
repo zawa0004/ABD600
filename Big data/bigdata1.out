@@ -1,0 +1,140 @@
+
+ ANSYS Mechanical Enterprise                       
+
+
+ *------------------------------------------------------------------*
+ |                                                                  |
+ |   W E L C O M E   T O   T H E   A N S Y S (R)  P R O G R A M     |
+ |                                                                  |
+ *------------------------------------------------------------------*
+
+
+
+
+ ***************************************************************
+ *            ANSYS 2021 R1          LEGAL NOTICES             *
+ ***************************************************************
+ *                                                             *
+ * Copyright 1971-2021 ANSYS, Inc.  All rights reserved.       *
+ * Unauthorized use, distribution or duplication is            *
+ * prohibited.                                                 *
+ *                                                             *
+ * Ansys is a registered trademark of ANSYS, Inc. or its       *
+ * subsidiaries in the United States or other countries.       *
+ * See the ANSYS, Inc. online documentation or the ANSYS, Inc. *
+ * documentation CD or online help for the complete Legal      *
+ * Notice.                                                     *
+ *                                                             *
+ ***************************************************************
+ *                                                             *
+ * THIS ANSYS SOFTWARE PRODUCT AND PROGRAM DOCUMENTATION       *
+ * INCLUDE TRADE SECRETS AND CONFIDENTIAL AND PROPRIETARY      *
+ * PRODUCTS OF ANSYS, INC., ITS SUBSIDIARIES, OR LICENSORS.    *
+ * The software products and documentation are furnished by    *
+ * ANSYS, Inc. or its subsidiaries under a software license    *
+ * agreement that contains provisions concerning               *
+ * non-disclosure, copying, length and nature of use,          *
+ * compliance with exporting laws, warranties, disclaimers,    *
+ * limitations of liability, and remedies, and other           *
+ * provisions.  The software products and documentation may be *
+ * used, disclosed, transferred, or copied only in accordance  *
+ * with the terms and conditions of that software license      *
+ * agreement.                                                  *
+ *                                                             *
+ * ANSYS, Inc. is a UL registered                              *
+ * ISO 9001:2015 company.                                      *
+ *                                                             *
+ ***************************************************************
+ *                                                             *
+ * This product is subject to U.S. laws governing export and   *
+ * re-export.                                                  *
+ *                                                             *
+ * For U.S. Government users, except as specifically granted   *
+ * by the ANSYS, Inc. software license agreement, the use,     *
+ * duplication, or disclosure by the United States Government  *
+ * is subject to restrictions stated in the ANSYS, Inc.        *
+ * software license agreement and FAR 12.212 (for non-DOD      *
+ * licenses).                                                  *
+ *                                                             *
+ ***************************************************************
+
+
+
+ *------------------------------------------------------------------*
+ |                    ANSYS Product Improvement                     |
+ |                                                                  |
+ |   ANSYS Product Improvement Program helps improve ANSYS          |
+ |   products. Participating in this program is like filling out a  |
+ |   survey. Without interrupting your work, the software reports   |
+ |   anonymous usage information such as errors, machine and        |
+ |   solver statistics, features used, etc. to ANSYS. We never      |
+ |   use the data to identify or contact you.                       |
+ |   The data does NOT contain:                                     |
+ |   - Any personally identifiable information including names,     |
+ |     IP addresses, file names, part names, etc.                   |
+ |   - Any information about your geometry or design specific       |
+ |     inputs.                                                      |
+ |   You can stop participation at any time. To change your         |
+ |   selection go to Help >> ANSYS Product Improvement Program      |
+ |   in the GUI.                                                    |
+ |   For more information about the ANSYS Privacy Policy, please    |
+ |   check: http://www.ansys.com/privacy                            |
+ |                                                                  |
+ *------------------------------------------------------------------*
+
+
+ 2021 R1 
+     
+ Point Releases and Patches installed:   
+     
+ ANSYS, Inc. Products 2021 R1
+ SpaceClaim 2021 R1  
+ ANSYS Sherlock 2021 R1  
+ Autodyn 2021 R1 
+ LS-DYNA 2021 R1 
+ Aqwa 2021 R1
+ Customization Files for User Programmable Features 2021 R1  
+ Mechanical Products 2021 R1 
+ Additive 2021 R1
+ Remote Solve Manager Standalone Services 2021 R1
+ Viewer 2021 R1  
+ ACIS Geometry Interface 2021 R1 
+ AutoCAD Geometry Interface 2021 R1  
+ Catia, Version 4 Geometry Interface 2021 R1 
+ Catia, Version 5 Geometry Interface 2021 R1 
+ Catia, Version 6 Geometry Interface 2021 R1 
+ Creo Elements/Direct Modeling Geometry Interface 2021 R1
+ Creo Parametric Geometry Interface 2021 R1  
+ Inventor Geometry Interface 2021 R1 
+ JTOpen Geometry Interface 2021 R1   
+ NX Geometry Interface 2021 R1   
+ Parasolid Geometry Interface  2021 R1   
+ Solid Edge Geometry Interface 2021 R1   
+ SOLIDWORKS Geometry Interface 2021 R1   
+ ANSYS, Inc. License Manager 2021 R1 
+
+
+          *****  ANSYS COMMAND LINE ARGUMENTS  *****
+  INITIAL JOBNAME              = bigdata                                                                                                                                                                                                                                                 
+  DISTRIBUTED MEMORY PARALLEL REQUESTED
+       2 PARALLEL PROCESSES REQUESTED WITH SINGLE THREAD PER PROCESS
+    TOTAL OF     2 CORES REQUESTED
+  MPI OPTION                   = INTELMPI
+  START-UP FILE MODE           = READ  
+  STOP FILE MODE               = READ  
+  MODEL FILE NAME              = \\w8file01.wad.hv.se\2024$\zawa0004\ABD600\Big data\bigdata.db                                                                                                                                                                                                      
+  GRAPHICS DEVICE REQUESTED    = win32   
+  GRAPHICAL ENTRY              = YES   
+  LANGUAGE                     = en-us               
+  INITIAL DIRECTORY = \\w8file01.wad.hv.se\2024$\zawa0004\ABD600\Big data
+
+ RELEASE= 2021 R1              BUILD= 21.1      UP20201109   VERSION=WINDOWS x64 
+ CURRENT JOBNAME=bigdata1  12:48:23  MAR 23, 2026 CP=      0.047
+
+
+ RESUME ANSYS DATA FROM FILE NAME=\\w8file01.wad.hv.se\2024$\zawa0004\ABD600\Big data\bigdata.db                                                                                                                                                                                                      
+
+ *** ERROR ***                           CP =       0.984   TIME= 12:48:24
+ Data file \\w8file01.wad.hv.se\2024$\zawa0004\ABD600\Big                
+ data\bigdata.db has incorrect format, is missing READ/WRITE             
+ permission, or is empty for RESUME.                                     

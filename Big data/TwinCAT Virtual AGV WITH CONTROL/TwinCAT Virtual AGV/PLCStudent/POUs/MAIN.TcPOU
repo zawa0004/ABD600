@@ -1,0 +1,352 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="MAIN" Id="{c85ca7f7-62e4-4195-a50a-ed021ea2dff4}" SpecialFunc="None">
+    <Declaration><![CDATA[PROGRAM MAIN
+VAR
+    (* R1: Route state machine *)
+    iRouteState     : INT := 0;
+    iBattery        : INT := 100;
+
+    (* R2: HTTP POST *)
+    fbHttpClientPost : FB_IotHttpClient := (
+        sHostName          := '127.0.0.1',
+        nHostPort          := 5000,
+        bKeepAlive         := TRUE,
+        tConnectionTimeout := T#10S
+    );
+    fbPost      : FB_HTTP_Post;
+    bSendPost   : BOOL := FALSE;
+    sLocation   : STRING;
+   fbFormat : FB_FormatString;
+    (* R2: Timestamp *)
+    fbTime      : FB_LocalSystemTime := (bEnable := TRUE, dwCycle := 1);
+    sTimeStamp  : STRING;
+
+    (* R4: Safety check *)
+    fbHttpClientGet : FB_IotHttpClient := (
+        sHostName          := '127.0.0.1',
+        nHostPort          := 5000,
+        bKeepAlive         := TRUE,
+        tConnectionTimeout := T#10S
+    );
+    fbSafetyCheck   : FB_HTTP_GetSafety;
+    bSendSafety     : BOOL := FALSE;
+    safetyPollTimer : TON;
+    sNextLocation   : STRING;
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[(* R2: 每个周期构建时间戳 *)
+fbTime(bEnable := TRUE, dwCycle := 1);
+fbFormat(
+    sFormat := '%d-%02d-%02d %02d:%02d:%02d', 
+    arg1 := F_WORD(fbTime.systemTime.wYear),
+    arg2 := F_WORD(fbTime.systemTime.wMonth),
+    arg3 := F_WORD(fbTime.systemTime.wDay),
+    arg4 := F_WORD(fbTime.systemTime.wHour),
+    arg5 := F_WORD(fbTime.systemTime.wMinute),
+    arg6 := F_WORD(fbTime.systemTime.wSecond),
+    sOut => sTimeStamp
+);
+CASE iRouteState OF
+
+    (* ────────────────────────────────── *)
+    (* 启动阶段                            *)
+    (* ────────────────────────────────── *)
+    0: (* 启动 — 首先返回原点(Home) *)
+        GVL.iOrder  := 1;
+        GVL.xStart  := TRUE;
+        iRouteState := 10;
+
+    10: (* 等待 AGV 到达原点 *)
+        GVL.xStart := FALSE;
+        IF GVL.OrderRobot_0.iPhase = 0 THEN
+            iRouteState := 12;
+        END_IF
+
+    (* ────────────────────────────────── *)
+    (* 位置 A                             *)
+    (* ────────────────────────────────── *)
+    11: (* 前往位置 A *)
+        GVL.iOrder  := 2;
+        GVL.xStart  := TRUE;
+        iRouteState := 20;
+
+    (* ────────────────────────────────── *)
+    (* 安全检查 A                         *)
+    (* ────────────────────────────────── *)
+    12: (* 设置位置，复位发送信号 *)
+        sNextLocation := 'A';
+        bSendSafety   := FALSE;
+        iRouteState   := 13;
+
+    13: (* 发送持续一个周期的脉冲信号 *)
+        bSendSafety := TRUE;
+        iRouteState := 14;
+
+    14: (* 等待位置 A 的安全检查结果 *)
+        bSendSafety := FALSE;
+        IF fbSafetyCheck.bDone THEN 
+            IF fbSafetyCheck.bIsSafe THEN
+                safetyPollTimer(IN := FALSE);
+                iRouteState := 11;      (* 安全 → 前往位置 A *)
+            ELSE
+                (* 不安全 → 等待 2 秒后重试 *)
+                safetyPollTimer(IN := TRUE, PT := T#2S);
+                IF safetyPollTimer.Q THEN
+                    safetyPollTimer(IN := FALSE);
+                    iRouteState := 12;  (* 重试 *)
+                END_IF
+            END_IF
+        ELSE
+            (* 未收到完成信号 (bDone) → 5 秒后超时 *)
+            safetyPollTimer(IN := TRUE, PT := T#5S);
+            IF safetyPollTimer.Q THEN
+                safetyPollTimer(IN := FALSE);
+                iRouteState := 12;      (* 从头重试 *)
+            END_IF
+        END_IF
+
+
+
+    20: (* AGV 已到达位置 A *)
+        GVL.xStart := FALSE;
+        IF GVL.OrderRobot_0.iPhase = 0 THEN
+            sLocation   := 'A';
+            iBattery    := iBattery - 5;
+            bSendPost   := TRUE;
+            iRouteState := 25;
+        END_IF
+
+    25: (* 等待位置 A 的 POST 数据上报完成 *)
+        bSendPost := FALSE;
+        IF NOT fbPost.bBusy THEN
+            iRouteState := 26;
+        END_IF
+
+    (* ────────────────────────────────── *)
+    (* 安全检查 B                         *)
+    (* ────────────────────────────────── *)
+    26: (* 设置位置，复位发送信号 *)
+        sNextLocation := 'B';
+        bSendSafety   := FALSE;
+        iRouteState   := 27;
+
+    27: (* 发送持续一个周期的脉冲信号 *)
+        bSendSafety := TRUE;
+        iRouteState := 28;
+
+    28: (* 等待位置 B 的安全检查结果 *)
+        bSendSafety := FALSE;
+        IF fbSafetyCheck.bDone THEN
+            IF fbSafetyCheck.bIsSafe THEN
+                safetyPollTimer(IN := FALSE);
+                iRouteState := 21;      (* 安全 → 前往位置 B *)
+            ELSE
+                (* 不安全 → 等待 2 秒后重试 *)
+                safetyPollTimer(IN := TRUE, PT := T#2S);
+                IF safetyPollTimer.Q THEN
+                    safetyPollTimer(IN := FALSE);
+                    iRouteState := 26;  (* 重试 *)
+                END_IF
+            END_IF
+        ELSE
+            (* 未收到完成信号 (bDone) → 5 秒后超时 *)
+            safetyPollTimer(IN := TRUE, PT := T#5S);
+            IF safetyPollTimer.Q THEN
+                safetyPollTimer(IN := FALSE);
+                iRouteState := 26;      (* 从头重试 *)
+            END_IF
+        END_IF
+
+    (* ────────────────────────────────── *)
+    (* 位置 B                             *)
+    (* ────────────────────────────────── *)
+    21: (* 前往位置 B *)
+        GVL.iOrder  := 3;
+        GVL.xStart  := TRUE;
+        iRouteState := 30;
+
+    30: (* AGV 已到达位置 B *)
+        GVL.xStart := FALSE;
+        IF GVL.OrderRobot_0.iPhase = 0 THEN
+            sLocation   := 'B';
+            iBattery    := iBattery - 5;
+            bSendPost   := TRUE;
+            iRouteState := 35;
+        END_IF
+
+    35: (* 等待位置 B 的 POST 数据上报完成 *)
+        bSendPost := FALSE;
+        IF NOT fbPost.bBusy THEN
+            iRouteState := 36;
+        END_IF
+
+    (* ────────────────────────────────── *)
+    (* 安全检查 C                         *)
+    (* ────────────────────────────────── *)
+    36: (* 设置位置，复位发送信号 *)
+        sNextLocation := 'C';
+        bSendSafety   := FALSE;
+        iRouteState   := 37;
+
+    37: (* 发送持续一个周期的脉冲信号 *)
+        bSendSafety := TRUE;
+        iRouteState := 38;
+
+    38: (* 等待位置 C 的安全检查结果 *)
+        bSendSafety := FALSE;
+        IF fbSafetyCheck.bDone THEN
+            IF fbSafetyCheck.bIsSafe THEN
+                safetyPollTimer(IN := FALSE);
+                iRouteState := 31;      (* 安全 → 前往位置 C *)
+            ELSE
+                (* 不安全 → 等待 2 秒后重试 *)
+                safetyPollTimer(IN := TRUE, PT := T#2S);
+                IF safetyPollTimer.Q THEN
+                    safetyPollTimer(IN := FALSE);
+                    iRouteState := 36;  (* 重试 *)
+                END_IF
+            END_IF
+        ELSE
+            (* 未收到完成信号 (bDone) → 5 秒后超时 *)
+            safetyPollTimer(IN := TRUE, PT := T#5S);
+            IF safetyPollTimer.Q THEN
+                safetyPollTimer(IN := FALSE);
+                iRouteState := 36;      (* 从头重试 *)
+            END_IF
+        END_IF
+
+    (* ────────────────────────────────── *)
+    (* 位置 C                             *)
+    (* ────────────────────────────────── *)
+    31: (* 前往位置 C *)
+        GVL.iOrder  := 4;
+        GVL.xStart  := TRUE;
+        iRouteState := 40;
+
+    40: (* AGV 已到达位置 C *)
+        GVL.xStart := FALSE;
+        IF GVL.OrderRobot_0.iPhase = 0 THEN
+            sLocation   := 'C';
+            iBattery    := iBattery - 5;
+            bSendPost   := TRUE;
+            iRouteState := 45;
+        END_IF
+
+    45: (* 等待位置 C 的 POST 数据上报完成 *)
+        bSendPost := FALSE;
+        IF NOT fbPost.bBusy THEN
+            iRouteState := 46;
+        END_IF
+
+    (* ────────────────────────────────── *)
+    (* 安全检查 D                         *)
+    (* ────────────────────────────────── *)
+    46: (* 设置位置，复位发送信号 *)
+        sNextLocation := 'D';
+        bSendSafety   := FALSE;
+        iRouteState   := 47;
+
+    47: (* 发送持续一个周期的脉冲信号 *)
+        bSendSafety := TRUE;
+        iRouteState := 48;
+
+    48: (* 等待位置 D 的安全检查结果 *)
+        bSendSafety := FALSE;
+        IF fbSafetyCheck.bDone THEN
+            IF fbSafetyCheck.bIsSafe THEN
+                safetyPollTimer(IN := FALSE);
+                iRouteState := 41;      (* 安全 → 前往位置 D *)
+            ELSE
+                (* 不安全 → 等待 2 秒后重试 *)
+                safetyPollTimer(IN := TRUE, PT := T#2S);
+                IF safetyPollTimer.Q THEN
+                    safetyPollTimer(IN := FALSE);
+                    iRouteState := 46;  (* 重试 *)
+                END_IF
+            END_IF
+        ELSE
+            (* 未收到完成信号 (bDone) → 5 秒后超时 *)
+            safetyPollTimer(IN := TRUE, PT := T#5S);
+            IF safetyPollTimer.Q THEN
+                safetyPollTimer(IN := FALSE);
+                iRouteState := 46;      (* 从头重试 *)
+            END_IF
+        END_IF
+
+    (* ────────────────────────────────── *)
+    (* 位置 D                             *)
+    (* ────────────────────────────────── *)
+    41: (* 前往位置 D *)
+        GVL.iOrder  := 5;
+        GVL.xStart  := TRUE;
+        iRouteState := 50;
+
+    50: (* AGV 已到达位置 D *)
+        GVL.xStart := FALSE;
+        IF GVL.OrderRobot_0.iPhase = 0 THEN
+            sLocation   := 'D';
+            iBattery    := iBattery - 5;
+            bSendPost   := TRUE;
+            iRouteState := 55;
+        END_IF
+
+    55: (* 等待位置 D 的 POST 数据上报完成 *)
+        bSendPost := FALSE;
+        IF NOT fbPost.bBusy THEN
+            iRouteState := 51;
+        END_IF
+
+    (* ────────────────────────────────── *)
+    (* 返回原点                            *)
+    (* ────────────────────────────────── *)
+    51: (* 返回原点(Home) *)
+        GVL.iOrder  := 1;
+        GVL.xStart  := TRUE;
+        iRouteState := 60;
+
+    60: (* AGV 已到达原点 — 进行充电 *)
+        GVL.xStart := FALSE;
+        IF GVL.OrderRobot_0.iPhase = 0 THEN
+            sLocation   := 'Home';
+            iBattery    := 100;
+            bSendPost   := TRUE;
+            iRouteState := 65;
+        END_IF
+
+    65: (* 等待原点的 POST 数据上报完成 — 再次进入循环 *)
+        bSendPost := FALSE;
+        IF NOT fbPost.bBusy THEN
+            iRouteState := 12;  (* 从位置 A 的安全检查重新开始循环 *)
+        END_IF
+
+END_CASE
+
+(* ────────────────────────────────────── *)
+(* 始终在每个周期执行                      *)
+(* ────────────────────────────────────── *)
+fbHttpClientPost.Execute();
+fbHttpClientGet.Execute();
+
+fbPost(
+    bSend    := bSendPost,
+    position := sLocation,
+    dateTime := sTimeStamp,
+    battery  := iBattery,
+    fbClient := fbHttpClientPost
+);
+
+fbSafetyCheck(
+    bSend     := bSendSafety,
+    sLocation := sNextLocation,
+    fbClient  := fbHttpClientGet
+);
+
+Process();]]></ST>
+    </Implementation>
+    <LineIds Name="MAIN">
+      <LineId Id="629" Count="306" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

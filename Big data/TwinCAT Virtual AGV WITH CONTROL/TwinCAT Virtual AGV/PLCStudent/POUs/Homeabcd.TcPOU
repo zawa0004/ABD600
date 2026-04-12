@@ -1,0 +1,81 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="Homeabcd" Id="{48a500ba-c96a-44a2-8cf2-1048bbcab131}" SpecialFunc="None">
+    <Declaration><![CDATA[PROGRAM Homeabcd
+
+VAR
+    AGVOrder        : FB_OrderAGV;
+
+    // 序列控制
+    iSeqStep        : INT := 0;
+    xStartPulse     : BOOL := FALSE;
+    iCurrentOrder   : INT := 0;
+
+    // 路径定义: HOME=1, A=2, B=3, C=4, D=5
+    aCheckpoints    : ARRAY[0..5] OF INT := [1, 2, 3, 4, 5, 1];
+    iPathIndex      : INT := 0;
+
+    // 启动触发（可接HMI按钮）
+    xRunSequence    : BOOL := TRUE;  // TRUE=自动运行；可改为按钮信号
+    xSequenceDone   : BOOL := FALSE;
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[//=== 每个周期都调用 FB ===
+AGVOrder(
+    xStart := xStartPulse,
+    iOrder := iCurrentOrder,
+    xStop  := FALSE
+);
+xStartPulse := FALSE; // 脉冲自动复位
+
+//=== 主序列状态机 ===
+CASE iSeqStep OF
+
+    0: // 初始化，等待启动信号
+        iPathIndex    := 0;
+        xSequenceDone := FALSE;
+        IF xRunSequence THEN
+            iSeqStep := 1;
+        END_IF
+
+    1: // 发送当前检查点命令
+        iCurrentOrder := aCheckpoints[iPathIndex];
+        xStartPulse   := TRUE;   // 触发 FB 开始握手
+        iSeqStep      := 2;
+
+2: // 等待 FB 完成本次握手
+    IF AGVOrder.xDone THEN
+        // 用 FB 内部保存的位置判断，而不是 GVL.iiAtPos
+        IF AGVOrder.iReachedPos = aCheckpoints[iPathIndex] THEN
+            iSeqStep := 3;
+        ELSE
+            iSeqStep := 99;
+        END_IF
+    END_IF
+
+    3: // 移动到下一个检查点
+        IF iPathIndex < 5 THEN
+            iPathIndex := iPathIndex + 1;
+            iSeqStep   := 1;
+        ELSE
+            // 全部完成：Home→A→B→C→D→Home
+            xSequenceDone := TRUE;
+            iSeqStep      := 4;
+        END_IF
+
+    4: // 序列完成（可在此循环或停止）
+        // 如果想循环重复，取消下面注释：
+         iSeqStep := 0;
+        ;
+
+    99: // 错误状态
+        xRunSequence := FALSE; // 停止运行，等待复位
+        ;
+
+END_CASE]]></ST>
+    </Implementation>
+    <LineIds Name="Homeabcd">
+      <LineId Id="1" Count="52" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

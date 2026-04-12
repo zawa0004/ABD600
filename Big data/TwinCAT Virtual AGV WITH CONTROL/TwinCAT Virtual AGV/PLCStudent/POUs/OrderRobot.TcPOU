@@ -1,0 +1,90 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="OrderRobot" Id="{319962ed-aa09-4fae-a099-9a249b25a758}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK OrderRobot
+VAR_INPUT
+	xStart: BOOL;
+	iOrder: INT;
+	xStop: BOOL;
+END_VAR
+VAR_OUTPUT
+END_VAR
+VAR
+	iPhase: INT:=0; //0: Wait signal
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[CASE iPhase OF
+	0: // Wait signal
+		IF xStart AND (iOrder<>0) THEN
+			iPhase:=1;
+		END_IF
+	1: // Set Order, here you can add more checking of the numbers are legal or not
+		GVL.qiGotoPos:=iOrder;
+		iPhase:=2;
+	2: // Set strobe
+		GVL.qxPLCStrobe:=TRUE;
+		iPhase:=3;
+	3: // Wait for input strobe
+		IF gvl.ixAGVStrobe THEN
+			gvl.qiGotoPos:=0;
+			gvl.qxPLCStrobe:=FALSE;
+			iPhase:=4;
+		END_IF
+	4: // wait for order finish or stop
+		IF xStop THEN
+			iPhase:=5;
+		ELSIF gvl.iiAtPos<>0 THEN
+			iPhase:=6;
+		END_IF
+	5: // Try to stop
+		gvl.qiGotoPos:=6;
+		iPhase:=12;
+	6: //Wait strobe
+		IF gvl.ixAGVStrobe THEN
+			iPhase:=7;
+		END_IF
+	7: // Set strobe
+		gvl.qxPLCStrobe:=TRUE;
+		iPhase:=8;
+	8: // wait for reset
+		IF gvl.iiAtPos=0 AND (NOT gvl.ixAGVStrobe) THEN
+			gvl.qxPLCStrobe:=FALSE;
+			iphase:=0;
+		END_IF
+	12: // Set strobe
+		GVL.qxPLCStrobe:=TRUE;
+		iPhase:=13;
+	13: // Wait for input strobe
+		IF gvl.ixAGVStrobe THEN
+			gvl.qiGotoPos:=0;
+			gvl.qxPLCStrobe:=FALSE;
+			iPhase:=14;
+		END_IF
+	14: // wait for order finish or stop
+		IF gvl.iiAtPos=6 THEN
+			iPhase:=16;
+		END_IF
+	16: //Wait strobe
+		IF gvl.ixAGVStrobe THEN
+			iPhase:=17;
+		END_IF
+	17: // Set strobe
+		gvl.qxPLCStrobe:=TRUE;
+		iPhase:=18;
+	18: // wait for reset
+		IF gvl.iiAtPos=0 AND (NOT gvl.ixAGVStrobe) THEN
+			gvl.qxPLCStrobe:=FALSE;
+			iphase:=19;
+		END_IF
+	19: // Go home
+		GVL.qiGotoPos:=1;
+		iPhase:=2;
+END_CASE]]></ST>
+    </Implementation>
+    <LineIds Name="OrderRobot">
+      <LineId Id="3" Count="65" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

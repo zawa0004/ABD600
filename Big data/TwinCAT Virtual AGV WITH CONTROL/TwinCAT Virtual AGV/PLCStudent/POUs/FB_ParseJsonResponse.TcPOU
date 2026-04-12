@@ -1,0 +1,77 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_ParseJsonResponse" Id="{b5466fc6-3c09-4b10-acd5-64bfa3967634}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_ParseJsonResponse
+VAR_INPUT
+	bExecute    : BOOL; 
+    sJsonString : STRING(511); 
+           
+END_VAR
+
+VAR_OUTPUT
+	bDone       : BOOL;   
+    sMessage    : STRING(255); // Extracted "message"
+    fPosition   : LREAL;       // Converted "Position"
+    sTimeStamp  : STRING(255); // Extracted "TimeStamp:" 
+    bError      : BOOL;        
+END_VAR
+
+VAR
+    fbJsonParser     : FB_JsonDomParser;
+    jsonDoc          : SJsonValue;
+    jsonMember       : SJsonValue;
+    jsonNodeYourData : SJsonValue; // Node to hold the "your_data" object
+    rtExecute        : R_TRIG;
+    
+    sTempPosition    : STRING(255); // Temporary string for conversion
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[rtExecute(CLK := bExecute);  // 上升沿触发检测功能块，把输入CLK绑定到bExecute，用于检测执行信号的上升沿
+
+IF rtExecute.Q THEN  // 如果检测到bExecute从FALSE→TRUE的上升沿（只触发一次）
+    bDone  := FALSE;  // 清除完成标志，表示当前解析任务尚未完成
+    bError := FALSE;  // 清除错误标志，表示开始时默认没有错误
+    
+    // Parse the incoming string (TwinCAT handles the $N newline characters automatically)
+    jsonDoc := fbJsonParser.ParseDocument(sJsonString);  // 解析输入的JSON字符串sJsonString，生成JSON文档结构（DOM）
+    
+    IF jsonDoc <> 0 THEN  // 如果解析成功（返回的JSON文档句柄不=0）
+        
+        // 1. Extract the root-level "message"
+        jsonMember := fbJsonParser.FindMember(jsonDoc, 'message');  // 在JSON根节点中查找字段 "message"
+        IF jsonMember <> 0 THEN  // 如果成功找到该字段 
+            sMessage := fbJsonParser.GetString(jsonMember); // 获取该字段的字符串值并赋给sMessage
+        END_IF
+        
+        // 2. Locate the nested "your_data" object
+        jsonNodeYourData := fbJsonParser.FindMember(jsonDoc, 'your_data'); // 在JSON根节点中查找嵌套对象 "your_data"
+        
+        IF jsonNodeYourData <> 0 THEN
+            
+            // 3. Extract "Position" from INSIDE "your_data"
+            jsonMember := fbJsonParser.FindMember(jsonNodeYourData, 'Position'); // 在内部查找字段 "Position"
+            IF jsonMember <> 0 THEN // 如果找到Position字段
+                sTempPosition := fbJsonParser.GetString(jsonMember);  // 获取Position的字符串值（例如 "10"）
+                fPosition     := STRING_TO_LREAL(sTempPosition); // Convert string "10" to LREAL 10.0
+            END_IF
+            
+            // 4. Extract "TimeStamp:" from INSIDE "your_data" (Note the included colon)
+            jsonMember := fbJsonParser.FindMember(jsonNodeYourData, 'TimeStamp'); // 在查找字段 "TimeStamp:"（注意字段名包含冒号）
+            IF jsonMember <> 0 THEN
+                sTimeStamp := fbJsonParser.GetString(jsonMember); // 获取时间戳字符串值并赋给sTimeStamp
+            END_IF
+            
+        END_IF
+        
+        bDone := TRUE; // JSON解析和数据提取完成，设置完成标志为TRUE
+    ELSE               // 如果JSON解析失败（jsonDoc为0）
+        bError := TRUE;   // 设置错误标志，表示解析过程中出现问题
+    END_IF
+END_IF]]></ST>
+    </Implementation>
+    <LineIds Name="FB_ParseJsonResponse">
+      <LineId Id="3" Count="40" />
+      <LineId Id="2" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>
