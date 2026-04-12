@@ -1,0 +1,16 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <GVL Name="GVL" Id="{9198b5c0-b7ca-4c3a-96d3-3e2544de245c}">
+    <Declaration><![CDATA[{attribute 'qualified_only'}
+VAR_GLOBAL
+	iwPumpSpeed   		AT%I* :  WORD; 	// Speed of the flow into the tank 0 - 100%
+										// 40% slowly drain 50% stand still 60% filling
+										
+
+	isStatusText 		AT%I* : STRING := 'Test text'; // Text on the info display
+	
+	qwActualLevel 		AT%Q* : WORD;  	// Level in the tank	
+	
+END_VAR]]></Declaration>
+  </GVL>
+</TcPlcObject>

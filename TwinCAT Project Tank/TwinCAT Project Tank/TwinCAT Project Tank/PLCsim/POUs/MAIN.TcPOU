@@ -1,0 +1,42 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="MAIN" Id="{a61880b6-ae8a-4daf-9e78-76b2717c868e}" SpecialFunc="None">
+    <Declaration><![CDATA[PROGRAM MAIN
+VAR
+	mwTankLevel: WORD;
+	mxPumpOn: BOOL;
+	mrTankLevel: REAL;
+	mxOpenDrainingValve: BOOL;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[
+
+mxPumpOn := GVL.iwPumpSpeed > 0;
+
+
+IF mxOpenDrainingValve THEN
+	mrTankLevel := mrTankLevel - 0.5;
+END_IF
+
+mrTankLevel :=  mrTankLevel + GVL.iwPumpSpeed/100.0;
+
+
+
+
+IF (mrTankLevel < 0) THEN
+	mrTankLevel := 0;
+END_IF
+
+IF (mrTankLevel > 300) THEN
+	mrTankLevel := 300;
+END_IF
+
+
+mwTankLevel := REAL_TO_WORD( mrTankLevel);
+
+gvl.qwActualLevel := REAL_TO_WORD(mwTankLevel / 3);
+]]></ST>
+    </Implementation>
+  </POU>
+</TcPlcObject>

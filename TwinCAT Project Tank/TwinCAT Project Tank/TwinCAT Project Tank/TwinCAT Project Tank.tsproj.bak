@@ -1,0 +1,110 @@
+<?xml version="1.0"?>
+<TcSmProject xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://www.beckhoff.com/schemas/2012/07/TcSmProject" TcSmVersion="1.0" TcVersion="3.1.4026.16">
+	<Project ProjectGUID="{D45A8FE7-694C-4ACB-9496-39DDB956759B}" TargetNetId="199.4.42.250.1.1" Target64Bit="true" ShowHideConfigurations="#x6">
+		<System>
+			<Tasks>
+				<Task Id="3" Priority="20" CycleTime="100000" AmsPort="350" AdtTasks="true">
+					<Name>PlcTask</Name>
+				</Task>
+				<Task Id="4" Priority="21" CycleTime="100000" AmsPort="351" AdtTasks="true">
+					<Name>PlcTask1</Name>
+				</Task>
+			</Tasks>
+		</System>
+		<Plc>
+			<Project GUID="{FE477E90-3BC9-4115-8C13-8D5729903332}" Name="PLCstudent" PrjFilePath="PLCstudent\PLCstudent.plcproj" TmcFilePath="PLCstudent\PLCstudent.tmc" ReloadTmc="true" AmsPort="851" FileArchiveSettings="#x000e" SymbolicMapping="true">
+				<Instance Id="#x08502000" TcSmClass="TComPlcObjDef" KeepUnrestoredLinks="2" TmcHash="{BF124B7B-1B13-6F11-3F3A-479E6871D4B5}" TmcPath="PLCstudent\PLCstudent.tmc">
+					<Name>PLCstudent Instance</Name>
+					<CLSID ClassFactory="TcPlc30">{08500001-0000-0000-F000-000000000064}</CLSID>
+					<Vars VarGrpType="2" AreaNo="1">
+						<Name>PlcTask Outputs</Name>
+						<Var>
+							<Name>GVL.qwPumpSpeed</Name>
+							<Comment><![CDATA[ Speed of the flow into the tank 0 - 100%]]></Comment>
+							<Type>WORD</Type>
+						</Var>
+						<Var>
+							<Name>GVL.qsStatusText</Name>
+							<Comment><![CDATA[ Text on the info display]]></Comment>
+							<Type>STRING(80)</Type>
+						</Var>
+					</Vars>
+					<Vars VarGrpType="1">
+						<Name>PlcTask Inputs</Name>
+						<Var>
+							<Name>GVL.iwActualLevel</Name>
+							<Comment><![CDATA[ Level in the tank	]]></Comment>
+							<Type>WORD</Type>
+						</Var>
+					</Vars>
+					<Contexts>
+						<Context>
+							<Id>0</Id>
+							<Name>PlcTask</Name>
+							<ManualConfig>
+								<OTCID>#x02010030</OTCID>
+							</ManualConfig>
+							<Priority>20</Priority>
+							<CycleTime>10000000</CycleTime>
+						</Context>
+					</Contexts>
+					<TaskPouOids>
+						<TaskPouOid Prio="20" OTCID="#x08502001"/>
+					</TaskPouOids>
+				</Instance>
+			</Project>
+			<Project GUID="{6FF844F5-6BA6-4483-836F-BDAD3CA4DD9F}" Name="PLCsim" PrjFilePath="PLCsim\PLCsim.plcproj" TmcFilePath="PLCsim\PLCsim.tmc" ReloadTmc="true" AmsPort="852" FileArchiveSettings="#x000e" SymbolicMapping="true">
+				<Instance Id="#x08502040" TcSmClass="TComPlcObjDef" KeepUnrestoredLinks="2" TmcHash="{95C84DFD-1389-3BEE-B6F5-38F73BC0051D}" TmcPath="PLCsim\PLCsim.tmc">
+					<Name>PLCsim Instance</Name>
+					<CLSID ClassFactory="TcPlc30">{08500001-0000-0000-F000-000000000064}</CLSID>
+					<Vars VarGrpType="2" AreaNo="1">
+						<Name>PlcTask Outputs</Name>
+						<Var>
+							<Name>GVL.qwActualLevel</Name>
+							<Comment><![CDATA[ Level in the tank	]]></Comment>
+							<Type>WORD</Type>
+						</Var>
+					</Vars>
+					<Vars VarGrpType="1">
+						<Name>PlcTask Inputs</Name>
+						<Var>
+							<Name>GVL.iwPumpSpeed</Name>
+							<Comment><![CDATA[ Speed of the flow into the tank 0 - 100%]]></Comment>
+							<Type>WORD</Type>
+						</Var>
+						<Var>
+							<Name>GVL.isStatusText</Name>
+							<Comment><![CDATA[ Text on the info display]]></Comment>
+							<Type>STRING(80)</Type>
+						</Var>
+					</Vars>
+					<Contexts>
+						<Context>
+							<Id>0</Id>
+							<Name>PlcTask</Name>
+							<ManualConfig>
+								<OTCID>#x02010040</OTCID>
+							</ManualConfig>
+							<Priority>21</Priority>
+							<CycleTime>10000000</CycleTime>
+						</Context>
+					</Contexts>
+					<TaskPouOids>
+						<TaskPouOid Prio="21" OTCID="#x08502041"/>
+					</TaskPouOids>
+				</Instance>
+			</Project>
+		</Plc>
+		<Io/>
+	</Project>
+	<Mappings>
+		<MappingInfo Identifier="{08502001-2041-0850-0020-500840205008}" Id="#x02030010" Watchdog="04000000040000000400000004000000"/>
+		<OwnerA Name="TIPC^PLCsim^PLCsim Instance">
+			<OwnerB Name="TIPC^PLCstudent^PLCstudent Instance">
+				<Link VarA="PlcTask Inputs^GVL.isStatusText" VarB="PlcTask Outputs^GVL.qsStatusText"/>
+				<Link VarA="PlcTask Inputs^GVL.iwPumpSpeed" VarB="PlcTask Outputs^GVL.qwPumpSpeed"/>
+				<Link VarA="PlcTask Outputs^GVL.qwActualLevel" VarB="PlcTask Inputs^GVL.iwActualLevel"/>
+			</OwnerB>
+		</OwnerA>
+	</Mappings>
+</TcSmProject>

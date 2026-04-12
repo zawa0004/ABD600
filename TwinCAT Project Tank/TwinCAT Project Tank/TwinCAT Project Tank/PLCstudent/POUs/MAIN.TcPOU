@@ -1,0 +1,56 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="MAIN" Id="{339c9723-049f-4d8c-a8c3-4bc9c78b41ed}" SpecialFunc="None">
+    <Declaration><![CDATA[VAR
+    iActualLevelInt : INT;    // 转换后的水位整数
+    iControlOutput  : INT;    // 计算出的控制输出结果
+    iKp             : INT := 50; // 比例增益，初始为 10
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[
+// -------------------------------------------------------------------------
+// TASK 2: Simple Proportional (P) Controller
+// Formula: Speed = (Set - Is) * Kp
+// -------------------------------------------------------------------------
+
+// Step 1: Convert WORD to INT to allow negative results in subtraction (Requirement: OBS!)
+iActualLevelInt := WORD_TO_INT(GVL.iwActualLevel);
+
+// Step 2: Calculate difference from Setpoint (50) and multiply by Gain (Kp)
+iControlOutput := (50 - iActualLevelInt) * iKp;
+
+// Step 3: Handle negative values and assign to Pump Speed (Requirement: SEL function logic)
+// If level > 50, calculation is negative. Pump speed cannot be negative.
+IF iControlOutput < 0 THEN
+    GVL.qwPumpSpeed := 0;
+ELSE
+    // Convert back to WORD for the global variable
+    GVL.qwPumpSpeed := INT_TO_WORD(iControlOutput);
+END_IF;
+
+
+// -------------------------------------------------------------------------
+// TASK 1: Level Indication and Status Text
+// Using ranges to prevent flickering/jitter on the display
+// -------------------------------------------------------------------------
+
+IF GVL.iwActualLevel < 40 THEN
+    // Below 40%: Low level status
+    GVL.qsStatusText := 'Low level';
+    
+ELSIF GVL.iwActualLevel >= 40 AND GVL.iwActualLevel <= 60 THEN
+    // Between 40% and 60%: Normal operating range
+    GVL.qsStatusText := 'Normal level';
+    
+ELSE
+    // Above 60%: High level status
+    GVL.qsStatusText := 'High level';
+END_IF;
+
+// -------------------------------------------------------------------------
+// TASK 3: Call Function Block Diagram
+// -------------------------------------------------------------------------
+FunktionBlockDiagram();]]></ST>
+    </Implementation>
+  </POU>
+</TcPlcObject>
